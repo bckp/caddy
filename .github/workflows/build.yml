@@ -27,12 +27,12 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          VERSION="$(
-            gh api repos/caddyserver/caddy/releases/latest \
-              --jq '.tag_name | ltrimstr("v")'
-          )"
+          TAG="$(gh api repos/caddyserver/caddy/releases/latest --jq '.tag_name')"
+          VERSION="${TAG#v}"
 
-          echo "Latest Caddy: ${VERSION}"
+          echo "Caddy tag:     ${TAG}"
+          echo "Caddy version: ${VERSION}"
+
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
 
       - name: Login to GHCR
@@ -81,8 +81,10 @@ jobs:
           context: .
           platforms: linux/amd64,linux/arm64
           push: true
+
           build-args: |
             CADDY_VERSION=${{ needs.check.outputs.version }}
+
           tags: |
             ${{ env.IMAGE }}:${{ needs.check.outputs.version }}
             ${{ env.IMAGE }}:latest
