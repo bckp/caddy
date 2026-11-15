@@ -2,6 +2,8 @@ ARG CADDY_VERSION
 
 FROM caddy:${CADDY_VERSION}-builder AS builder
 
+RUN apk upgrade --no-cache
+
 ARG PROXY_VERSION
 ARG CLOUDFLARE_VERSION
 ARG CLOUDFLARE_IP_VERSION
@@ -12,6 +14,8 @@ RUN xcaddy build "${CADDY_VERSION}" \
     --with "github.com/WeidiDeng/caddy-cloudflare-ip@${CLOUDFLARE_IP_VERSION}"
 
 FROM caddy:${CADDY_VERSION}-alpine
+
+RUN apk upgrade --no-cache
 
 COPY --from=builder /usr/bin/caddy /usr/bin/caddy
 

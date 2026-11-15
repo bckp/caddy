@@ -6,6 +6,10 @@ on:
   schedule:
     - cron: "17 3 * * *"
 
+concurrency:
+  group: caddy-image-${{ github.ref }}
+  cancel-in-progress: false
+
 permissions:
   contents: read
   packages: write
@@ -66,14 +70,7 @@ jobs:
             echo "tag=${TAG}"
           } >> "$GITHUB_OUTPUT"
 
-      - name: Login to GHCR
-        uses: docker/login-action@v4
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Check if image already exists
+      - name: Check upstream image availability
         id: check
         run: |
           CADDY="${{ steps.version.outputs.caddy }}"
@@ -85,16 +82,7 @@ jobs:
             fi
           done
 
-          if docker buildx imagetools inspect \
-            "${IMAGE}:${{ steps.version.outputs.tag }}" \
-            >/dev/null 2>&1
-          then
-            echo "Image already exists"
-            echo "build=false" >> "$GITHUB_OUTPUT"
-          else
-            echo "New Caddy or plugin version found"
-            echo "build=true" >> "$GITHUB_OUTPUT"
-          fi
+          echo "build=true" >> "$GITHUB_OUTPUT"
 
   build:
     needs: check
@@ -121,6 +109,8 @@ jobs:
           context: .
           platforms: linux/amd64,linux/arm64
           push: true
+          pull: true
+          no-cache: true
 
           build-args: |
             CADDY_VERSION=${{ needs.check.outputs.caddy }}
@@ -129,6 +119,7 @@ jobs:
             CLOUDFLARE_IP_VERSION=${{ needs.check.outputs.cloudflare_ip }}
 
           tags: |
+            ${{ env.IMAGE }}:${{ needs.check.outputs.tag }}-build${{ github.run_number }}-${{ github.run_attempt }}
             ${{ env.IMAGE }}:${{ needs.check.outputs.tag }}
             ${{ env.IMAGE }}:${{ needs.check.outputs.caddy }}
             ${{ env.IMAGE }}:latest
